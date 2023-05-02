@@ -49,7 +49,7 @@ rule unxzip:
     threads: 1
     shell:
         """
-        xz -dc {input.aln} > {output.aln}
+        xz -dc {input.fa} > {output.fa}
         """
 
 rule raxml:
