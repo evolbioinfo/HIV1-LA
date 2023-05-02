@@ -9,7 +9,7 @@ import os
 
 
 # To run on bioevo:
-# source ~/.bashrc && conda activate snakemake && module load apptainer && cd /pasteur/zeus/projets/p01/Evolbioinfo/users/azhukova/projects/hiv
+# source ~/.bashrc && conda activate snakemake && module load apptainer && cd /pasteur/zeus/projets/p01/Evolbioinfo/users/azhukova/projects/HIV1-LA
 # snakemake --snakefile Snakefile_trees --keep-going --cores 24 --config folder=.. --use-singularity --singularity-prefix $HOME/.singularity --singularity-args "-B /pasteur" --cluster "sbatch -c {threads} -o logs/{params.name}.log -e logs/{params.name}.log --mem {params.mem} -p bioevo --qos=bioevo -A bioevo -J {params.name}" --jobs 300
 # to run on hubbioit
 # snakemake --snakefile Snakefile_trees --keep-going --cores 24 --config folder=.. --use-singularity --singularity-prefix $HOME/.singularity --singularity-args "-B /pasteur" --cluster "sbatch -c {threads} -o logs/{params.name}.log -e logs/{params.name}.log --mem {params.mem} -p hubbioit --qos=hubbioit -A hubbioit -J {params.name}" --jobs 300
