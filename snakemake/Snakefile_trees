@@ -1,0 +1,142 @@
+import os
+
+# To run locally:
+# snakemake --snakefile Snakefile_trees --keep-going --cores 4 --use-singularity --singularity-prefix ~/.singularity --singularity-args "--home ~"
+
+# To visualise the pipeline:
+# module load graphviz
+# snakemake --snakefile Snakefile_trees --dag | dot -Tsvg > pipeline_trees.svg
+
+
+# To run on bioevo:
+# source ~/.bashrc && conda activate snakemake && module load apptainer && cd /pasteur/zeus/projets/p01/Evolbioinfo/users/azhukova/projects/hiv
+# snakemake --snakefile Snakefile_trees --keep-going --cores 24 --config folder=.. --use-singularity --singularity-prefix $HOME/.singularity --singularity-args "-B /pasteur" --cluster "sbatch -c {threads} -o logs/{params.name}.log -e logs/{params.name}.log --mem {params.mem} -p bioevo --qos=bioevo -A bioevo -J {params.name}" --jobs 300
+# to run on hubbioit
+# snakemake --snakefile Snakefile_trees --keep-going --cores 24 --config folder=.. --use-singularity --singularity-prefix $HOME/.singularity --singularity-args "-B /pasteur" --cluster "sbatch -c {threads} -o logs/{params.name}.log -e logs/{params.name}.log --mem {params.mem} -p hubbioit --qos=hubbioit -A hubbioit -J {params.name}" --jobs 300
+# to run on common:
+# snakemake --snakefile Snakefile_trees --keep-going --cores 24 --config folder=.. --use-singularity --singularity-prefix $HOME/.singularity --singularity-args "-B /pasteur" --cluster "sbatch -c {threads} -o logs/{params.name}.log -e logs/{params.name}.log --mem {params.mem} -p common --qos=normal -A bioevo -J {params.name}" --jobs 300
+
+
+localrules: all
+ruleorder: optimise_branch_lengths > raxml > fasttree
+
+folder = os.path.abspath(config.get("folder", '..'))
+data_dir = os.path.join(folder, 'data')
+
+dating = ['lsd2']
+trees = ['raxml', 'raxed_fast']
+
+
+
+rule all:
+    input:
+        expand(os.path.join(data_dir, 'trees', '{tree}.{type}.nwk'), tree=trees, type=['FLT_2021', 'REF_2020']),
+
+
+rule unxzip:
+    '''
+    Unxzips the alignment.
+    '''
+    input:
+        fa = os.path.join(data_dir, 'input', 'HIV1_{type}_genome_DNA.fasta.xz')
+    output:
+        fa = temp(os.path.join(data_dir, 'aln', 'aln.{type}.fa'))
+    params:
+        mem = 120000,
+        name = 'unxz_ref',
+        qos = 'fast',
+        partition = 'common,dedicated,bioevo'
+    threads: 1
+    shell:
+        """
+        xz -dc {input.aln} > {output.aln}
+        """
+
+rule raxml:
+    '''
+    Reconstructs a tree with RAxML.
+    '''
+    input:
+        aln = os.path.join(data_dir, 'aln', 'aln.{type}.fa')
+    output:
+        tree = os.path.join(data_dir, 'trees', 'raxml.{type}.nwk'),
+        log = os.path.join(data_dir, 'trees', 'raxml.{type}.log'),
+    threads: 12
+    singularity: "docker://evolbioinfo/raxml-ng:v1.1.0"
+    params:
+        mem = 40000,
+        name = 'raxml',
+        qos = 'normal'
+    shell:
+        """
+        raxml-ng --model GTR+G4+FO+IO --msa {input.aln} \
+        --seed 239 --threads {threads} --force --tree pars{{5}}
+        cp {input.aln}.raxml.bestTree {output.tree}
+        cp {input.aln}.raxml.log {output.log}
+        rm -rf {input.aln}.raxml.*
+        """
+
+
+rule fasttree:
+    '''
+    Reconstructs a tree with FastTree.
+    '''
+    input:
+        aln = os.path.join(data_dir, 'aln', 'aln.{type}.fa')
+    output:
+        tree = os.path.join(data_dir, 'trees', 'fast.{type}.nwk'),
+        log = os.path.join(data_dir, 'trees', 'fast.{type}.log'),
+    threads: 1
+    singularity: "docker://evolbioinfo/fasttree:v2.1.11"
+    params:
+        mem = 10000,
+        name='fast',
+        qos = 'normal'
+    shell: "FastTree -gamma -nt -gtr -cat 4 -log {output.log} < {input.aln} > {output.tree}"
+
+
+rule resolve:
+    '''
+    Resolve multifurcations.
+    '''
+    input:
+        tree = os.path.join(data_dir, 'trees', '{tree}.nwk'),
+    output:
+        tree = os.path.join(data_dir, 'trees', '{tree}.resolved.nwk'),
+    singularity:
+        "docker://evolbioinfo/gotree:v0.3.0b"
+    params:
+        mem = 2000,
+        name = 'resolve_{tree}',
+        qos = 'fast'
+    threads: 1
+    shell:
+        """
+        gotree resolve -o {output.tree} -i {input.tree}
+        """
+
+
+rule optimise_branch_lengths:
+    '''
+    Optimises branch lengths on a given tree with RAxML-NG
+    '''
+    input:
+        aln = os.path.join(data_dir, 'aln', 'aln.{type}.fa'),
+        tree = os.path.join(data_dir, 'trees', '{tree}.{type}.resolved.nwk'),
+    output:
+        tree = os.path.join(data_dir, 'trees', 'raxed_{tree}.{type}.nwk'),
+        log = os.path.join(data_dir, 'trees', 'raxed_{tree}.{type}.log'),
+    threads: 4
+    singularity: "docker://evolbioinfo/raxml-ng:v1.1.0"
+    params:
+        mem = 40000,
+        name = 'raxbr_{tree}',
+    shell:
+        """
+        cp {input.aln} {input.aln}.{wildcards.tree}
+        raxml-ng --evaluate --model GTR+G4+FO+IO --msa {input.aln}.{wildcards.tree} --msa-format FASTA --data-type DNA \
+        --tree {input.tree} --threads {threads} --force --seed 239
+        cp {input.aln}.{wildcards.tree}.raxml.bestTree {output.tree}
+        cp {input.aln}.{wildcards.tree}.raxml.log {output.log}
+        rm -rf {input.aln}.{wildcards.tree}*
+        """
