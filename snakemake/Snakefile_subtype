@@ -23,7 +23,7 @@ N = 2000
 rule all:
     input:
         os.path.join(data_dir, 'metadata', 'metadata.FLT.tab'),
-        os.path.join(data_dir, 'aln', 'aln.FLT.fa.xz'),
+        os.path.join(data_dir, 'aln', 'aln.FLT.filtered.fa.xz'),
         os.path.join(data_dir,'aln','jpHMM_output','FLT','alignment_to_msa.txt.xz'),
         os.path.join(data_dir,'aln','jpHMM_output','FLT','recombination.txt.xz'),
 
@@ -246,6 +246,25 @@ rule aln_jpHMM:
         """
         jphmm_align --jphmm_msas {input.msa} --in_fas {input.fa} --out_aln {output.aln} \
          --aln_len `head -n 1 {input.length}`
+        """
+
+
+rule filter_aln:
+    '''Filters out recombinants and rare subtypes'''
+    input:
+        aln = os.path.join(data_dir, 'aln', 'aln.FLT.fa.xz'),
+        data = os.path.join(data_dir, 'metadata', 'metadata.FLT.tab')
+    output:
+        aln = os.path.join(data_dir, 'aln', 'aln.FLT.filtered.fa.xz'),
+    params:
+        mem = 10000,
+        name = 'filter_aln',
+        qos = 'fast'
+    threads: 1
+    singularity: "docker://evolbioinfo/jphmm_tools:v0.1.4"
+    shell:
+        """
+        python3 py/filter_aln.py --in_aln {input.aln} --out_aln {output.aln} --metadata {input.data}
         """
 
 rule metadata_jpHMM:
