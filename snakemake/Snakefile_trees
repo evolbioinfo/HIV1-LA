@@ -120,7 +120,7 @@ rule optimise_branch_lengths:
     Optimises branch lengths on a given tree with RAxML-NG
     '''
     input:
-        aln = os.path.join(data_dir, 'aln', 'aln.FLT.filtered..fa'),
+        aln = os.path.join(data_dir, 'aln', 'aln.FLT.filtered.fa'),
         tree = os.path.join(data_dir, 'trees', '{tree}.resolved.nwk'),
     output:
         tree = os.path.join(data_dir, 'trees', 'raxed_{tree}.nwk'),
