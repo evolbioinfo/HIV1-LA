@@ -108,7 +108,7 @@ if '__main__' == __name__:
     params = parser.parse_args()
 
     index, data = [], []
-    with get_read_handle(params.input_fa) as handle:
+    with get_read_handle(params.in_aln) as handle:
         for rec in SeqIO.parse(handle, "fasta"):
             index.append(rec.id)
             data.append([get_date(rec.id), get_cc(rec.id), get_subtype(rec.id), get_id(rec.id)])

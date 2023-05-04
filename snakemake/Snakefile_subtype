@@ -8,7 +8,7 @@ import os
 
 # To run on maestro:
 # source ~/.bashrc && conda activate snakemake && module load apptainer && cd /pasteur/zeus/projets/p01/Evolbioinfo/users/azhukova/projects/HIV1-LA/snakemake
-# snakemake --snakefile Snakefile_subtype --keep-going --cores 48 --config folder=.. --use-singularity --singularity-prefix $HOME/.singularity --singularity-args "-B /pasteur" --cluster "sbatch -c {threads} -o logs/{params.name}.log -e logs/{params.name}.log --mem {params.mem} -p common --qos=fast -J {params.name}" --jobs 300
+# snakemake --snakefile Snakefile_subtype --keep-going --cores 48 --config folder=.. --use-singularity --singularity-prefix $HOME/.singularity --singularity-args "-B /pasteur" --cluster "sbatch -c {threads} -o logs/{params.name}.log -e logs/{params.name}.log --mem {params.mem} -p common,dedicated --qos=fast -J {params.name}" --jobs 300
 
 
 localrules: all
