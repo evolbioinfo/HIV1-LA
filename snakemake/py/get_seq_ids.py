@@ -16,9 +16,6 @@ if '__main__' == __name__:
     ids = list()
     for subtype in params.subtype:
         ids.extend(list(df[df['generalized_subtype'] == subtype].index))
-        # this sequence is mistyped
-        if 'A' == subtype:
-            ids.append('B.RU.15.RU_ERS_3013_2015.MZ427755')
     with open(params.outgroup, 'w+') as f:
         f.write('{}\n'.format(len(ids)))
         f.write('\n'.join(ids))
