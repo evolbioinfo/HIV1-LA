@@ -6,6 +6,11 @@ import os
 # To visualise the pipeline:
 # snakemake --snakefile Snakefile_subtype --dag | dot -Tsvg > pipeline_subtype.svg
 
+# To run on maestro:
+# source ~/.bashrc && conda activate snakemake && module load apptainer && cd /pasteur/zeus/projets/p01/Evolbioinfo/users/azhukova/projects/HIV1-LA/snakemake
+# snakemake --snakefile Snakefile_subtype --keep-going --cores 48 --config folder=.. --use-singularity --singularity-prefix $HOME/.singularity --singularity-args "-B /pasteur" --cluster "sbatch -c {threads} -o logs/{params.name}.log -e logs/{params.name}.log --mem {params.mem} -p common --qos=fast -J {params.name}" --jobs 300
+
+
 localrules: all
 
 folder = os.path.abspath(config.get("folder", '..'))
@@ -68,7 +73,7 @@ rule xzip:
     output:
         aln = os.path.join(data_dir, 'aln', '{aln}.fa.xz'),
     params:
-        mem = 120000,
+        mem = 6000,
         name = 'xz_{aln}',
         qos = 'fast',
     threads: 1
@@ -87,7 +92,7 @@ rule unxzip_LA_aln:
     output:
         fa = temp(os.path.join(data_dir, 'input', 'HIV1_REF_2020_genome_DNA.fa'))
     params:
-        mem = 120000,
+        mem = 2000,
         name = 'unxz_ref',
         qos = 'fast',
         partition = 'common,dedicated,bioevo'
@@ -142,7 +147,7 @@ rule split_fa:
     output:
         fa = temp(expand(os.path.join(data_dir, 'aln', 'split_aln', 'sequences.FLT.{n}.fa'), n=range(N)))
     params:
-        mem = 1000,
+        mem = 10000,
         name = 'split_fa',
         fa = os.path.join(data_dir, 'aln', 'split_aln', 'sequences.FLT.{}.fa'),
         qos = 'fast'
