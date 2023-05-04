@@ -22,6 +22,7 @@ ruleorder: optimise_branch_lengths > raxml > fasttree
 
 folder = os.path.abspath(config.get("folder", '..'))
 data_dir = os.path.join(folder, 'data')
+os.makedirs(os.path.join(folder, 'logs'), exist_ok=True)
 
 trees = ['raxml', 'raxed_fast']
 
