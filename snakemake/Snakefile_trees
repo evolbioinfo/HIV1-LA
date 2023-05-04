@@ -23,14 +23,13 @@ ruleorder: optimise_branch_lengths > raxml > fasttree
 folder = os.path.abspath(config.get("folder", '..'))
 data_dir = os.path.join(folder, 'data')
 
-dating = ['lsd2']
 trees = ['raxml', 'raxed_fast']
 
 
 
 rule all:
     input:
-        expand(os.path.join(data_dir, 'trees', '{tree}.{type}.nwk'), tree=trees, type=['FLT_2021', 'REF_2020']),
+        expand(os.path.join(data_dir, 'trees', '{tree}.nwk'), tree=trees),
 
 
 rule unxzip:
@@ -38,9 +37,9 @@ rule unxzip:
     Unxzips the alignment.
     '''
     input:
-        fa = os.path.join(data_dir, 'input', 'HIV1_{type}_genome_DNA.fasta.xz')
+        fa = os.path.join(data_dir, 'aln', '{aln}.fa.xz')
     output:
-        fa = temp(os.path.join(data_dir, 'aln', 'aln.{type}.fa'))
+        fa = temp(os.path.join(data_dir, 'aln', '{aln}.fa'))
     params:
         mem = 120000,
         name = 'unxz_ref',
@@ -57,10 +56,10 @@ rule raxml:
     Reconstructs a tree with RAxML.
     '''
     input:
-        aln = os.path.join(data_dir, 'aln', 'aln.{type}.fa')
+        aln = os.path.join(data_dir, 'aln', 'aln.FLT.filtered.fa')
     output:
-        tree = os.path.join(data_dir, 'trees', 'raxml.{type}.nwk'),
-        log = os.path.join(data_dir, 'trees', 'raxml.{type}.log'),
+        tree = os.path.join(data_dir, 'trees', 'raxml.nwk'),
+        log = os.path.join(data_dir, 'trees', 'raxml.log'),
     threads: 12
     singularity: "docker://evolbioinfo/raxml-ng:v1.1.0"
     params:
@@ -82,10 +81,10 @@ rule fasttree:
     Reconstructs a tree with FastTree.
     '''
     input:
-        aln = os.path.join(data_dir, 'aln', 'aln.{type}.fa')
+        aln = os.path.join(data_dir, 'aln', 'aln.FLT.filtered.fa')
     output:
-        tree = os.path.join(data_dir, 'trees', 'fast.{type}.nwk'),
-        log = os.path.join(data_dir, 'trees', 'fast.{type}.log'),
+        tree = os.path.join(data_dir, 'trees', 'fast.nwk'),
+        log = os.path.join(data_dir, 'trees', 'fast.log'),
     threads: 1
     singularity: "docker://evolbioinfo/fasttree:v2.1.11"
     params:
@@ -121,11 +120,11 @@ rule optimise_branch_lengths:
     Optimises branch lengths on a given tree with RAxML-NG
     '''
     input:
-        aln = os.path.join(data_dir, 'aln', 'aln.{type}.fa'),
-        tree = os.path.join(data_dir, 'trees', '{tree}.{type}.resolved.nwk'),
+        aln = os.path.join(data_dir, 'aln', 'aln.FLT.filtered..fa'),
+        tree = os.path.join(data_dir, 'trees', '{tree}.resolved.nwk'),
     output:
-        tree = os.path.join(data_dir, 'trees', 'raxed_{tree}.{type}.nwk'),
-        log = os.path.join(data_dir, 'trees', 'raxed_{tree}.{type}.log'),
+        tree = os.path.join(data_dir, 'trees', 'raxed_{tree}.nwk'),
+        log = os.path.join(data_dir, 'trees', 'raxed_{tree}.log'),
     threads: 4
     singularity: "docker://evolbioinfo/raxml-ng:v1.1.0"
     params:
