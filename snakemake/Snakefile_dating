@@ -1,0 +1,195 @@
+import os
+
+# To run locally:
+# snakemake --snakefile Snakefile_trees --keep-going --cores 4 --use-singularity --singularity-prefix ~/.singularity --singularity-args "--home ~"
+
+# To visualise the pipeline:
+# module load graphviz
+# snakemake --snakefile Snakefile_trees --dag | dot -Tsvg > pipeline_trees.svg
+
+localrules: all
+ruleorder: nex2nwk > date_lsd2
+
+folder = os.path.abspath(config.get("folder", '..'))
+data_dir = os.path.join(folder, 'data')
+
+
+rule all:
+    input:
+        os.path.join(data_dir, 'timetrees', 'raxed_fast.nwk')
+
+
+
+rule extract_outgroup:
+    '''
+    Extracts A and G sequences as an outgroup.
+    '''
+    input:
+        tab = os.path.join(data_dir, 'metadata', 'metadata.FLT.tab'),
+    output:
+        outgroup = os.path.join(data_dir, 'aln', 'outgroup.tab'),
+    params:
+        mem = 1000,
+        name = 'outgroup',
+        date_col = 'sample_date'
+    threads: 1
+    singularity: "docker://evolbioinfo/python-evol:v3.6richer"
+    shell:
+        """
+        python3 py/get_seq_ids.py --input_data {input.tab} --outgroup {output.outgroup} \
+        --subtype A G
+        """
+
+rule preroot:
+    '''
+    Preroots a tree with an outgroup.
+    '''
+    input:
+        tree = os.path.join(data_dir, 'trees', '{tree}.nwk'),
+        outgroup = os.path.join(data_dir, 'aln', 'outgroup.tab'),
+    output:
+        tree = os.path.join(data_dir, 'trees', 'rooted_{tree}.nwk'),
+    singularity:
+        "docker://evolbioinfo/gotree:v0.3.0b"
+    params:
+        mem = 2000,
+        name = 'root',
+        qos = 'fast'
+    threads: 1
+    shell:
+        """
+        gotree support clear -i {input.tree} | gotree reroot outgroup -l {input.outgroup} -o {output.tree}
+        """
+
+rule aln_length:
+    '''
+    Calculates alignment length.
+    '''
+    input:
+        aln = os.path.join(data_dir, 'aln', '{aln}.fa.xz'),
+    output:
+        length = os.path.join(data_dir, 'aln', '{aln}.length'),
+    singularity:
+        "docker://evolbioinfo/goalign:v0.3.6"
+    params:
+        mem = 2000,
+        name = 'aln_len',
+        qos = 'fast'
+    threads: 1
+    shell:
+        """
+        goalign stats length -i {input.aln} > {output.length}
+        """
+
+rule tree_size:
+    '''
+    Calculates tree size.
+    '''
+    input:
+        tree = os.path.join(data_dir, '{tree}.nwk'),
+    output:
+        length = os.path.join(data_dir, '{tree}.ntips'),
+    singularity:
+        "docker://evolbioinfo/gotree:v0.3.0b"
+    params:
+        mem = 2000,
+        name = 'tree_size',
+        qos = 'fast'
+    threads: 1
+    shell:
+        """
+        gotree stats -i {input.tree} | tail -n 1 | awk '{{print $3}}' > {output.length}
+        """
+
+rule extract_dates_lsd2:
+    '''
+    Reformats metadata into date file readable by LSD.
+    '''
+    input:
+        tab = os.path.join(data_dir, 'metadata', 'metadata.FLT.tab'),
+    output:
+        tab = os.path.join(data_dir, 'metadata', 'lsd2.dates'),
+    params:
+        mem = 1000,
+        name = 'lsd2_dates',
+        date_col = 'sample_date'
+    threads: 1
+    singularity: "docker://evolbioinfo/python-evol:v3.6richer"
+    shell:
+        """
+        python3 py/extract_dates_lsd.py --data {input.tab} --dates {output.tab} \
+        --date_col "{params.date_col}"
+        """
+
+rule extract_partition_lsd2:
+    '''
+    Reformats metadata into date file readable by LSD.
+    '''
+    input:
+        tree = os.path.join(data_dir, 'trees', 'rooted_{tree}_FTL_2021.nwk'),
+        tab = os.path.join(data_dir, 'metadata', 'metadata.FLT.tab'),
+    output:
+        tab = os.path.join(data_dir, 'metadata', 'lsd2.{tree}.partition'),
+        tree = os.path.join(data_dir, 'trees', 'named_rooted_{tree}_FTL_2021.nwk'),
+    params:
+        mem = 1000,
+        name = 'lsd2_dates',
+        date_col = 'sample_date'
+    threads: 1
+    singularity: "docker://evolbioinfo/python-evol:v3.6richer"
+    shell:
+        """
+        python3 py/extract_partition_lsd.py --data {input.tab} --partition {output.tab} \
+        --in_nwk {input.tree} --out_nwk {output.tree} --subtype_col "generalized_subtype"
+        """
+
+rule date_lsd2:
+    '''
+    Date a tree.
+    '''
+    input:
+        tree = os.path.join(data_dir, 'trees', 'named_rooted_{tree}_FTL_2021.nwk'),
+        length = os.path.join(data_dir, 'aln', 'aln.nodrm.length'),
+        dates = os.path.join(data_dir, 'metadata', 'lsd2.dates'),
+        partition = os.path.join(data_dir, 'metadata', 'lsd2.{tree}.partition'),
+        outgroup = os.path.join(data_dir, 'aln', 'outgroup.tab'),
+    output:
+        tree = os.path.join(data_dir, 'timetrees', '{tree}.nexus'),
+        log = os.path.join(data_dir, 'timetrees', '{tree}.log'),
+    threads: 1
+    singularity: "docker://evolbioinfo/lsd2:v2.3"
+    params:
+        mem = 4000,
+        name = 'lsd2',
+        wd = os.path.join(data_dir, 'timetrees', '{tree}.lsd2.wd'),
+        qos = 'fast'
+    shell:
+        """
+        n=`head {input.length}`
+
+        lsd2 -i {input.tree} -d {input.dates} -e 3 -s $n -o {params.wd} -f 1000 -g {input.outgroup} -p {input.partition}
+
+        mv "{params.wd}.date.nexus" "{output.tree}"
+        mv "{params.wd}" "{output.log}"
+        rm "{params.wd}.nwk"
+        rm -rf "{params.wd}*"
+        """
+
+rule nex2nwk:
+    '''
+    Converts a nexus tree to newick while keeping the date data and naming the nodes.
+    '''
+    input:
+        tree = os.path.join(data_dir, '{tree}.nexus'),
+    output:
+        tree = os.path.join(data_dir, '{tree}.nwk'),
+    singularity: "docker://evolbioinfo/pastml:v1.9.34"
+    params:
+        mem = 2000,
+        name = 'annotate',
+        qos = 'fast'
+    threads: 1
+    shell:
+        """
+        python py/nex2nwk.py --nexus {input.tree} --out_nwk {output.tree}
+        """

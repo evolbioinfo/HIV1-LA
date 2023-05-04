@@ -24,6 +24,8 @@ rule all:
     input:
         os.path.join(data_dir, 'metadata', 'metadata.FLT.tab'),
         os.path.join(data_dir, 'aln', 'aln.FLT.fa.xz'),
+        os.path.join(data_dir,'aln','jpHMM_output','FLT','alignment_to_msa.txt.xz'),
+        os.path.join(data_dir,'aln','jpHMM_output','FLT','recombination.txt.xz'),
 
 
 rule metadata:
@@ -37,7 +39,7 @@ rule metadata:
         name = 'metadata',
         qos = 'fast'
     threads: 1
-    singularity: "docker://evolbioinfo/python-evol:v3.6"
+    singularity: "docker://evolbioinfo/python-evol:v3.8.2"
     shell:
         """
         python3 py/la_metadata.py --in_aln {input.aln} --out_data {output.data}
@@ -69,9 +71,9 @@ rule xzip:
     Xzips the alignments.
     '''
     input:
-        aln = os.path.join(data_dir, 'aln', '{aln}.fa'),
+        aln = os.path.join(data_dir, 'aln', '{aln}'),
     output:
-        aln = os.path.join(data_dir, 'aln', '{aln}.fa.xz'),
+        aln = os.path.join(data_dir, 'aln', '{aln}.xz'),
     params:
         mem = 6000,
         name = 'xz_{aln}',
@@ -188,8 +190,8 @@ rule combine_jpHMM_output:
         msa = expand(os.path.join(data_dir, 'aln', 'jpHMM_output', 'FLT', '{n}', 'alignment_to_msa.txt'), n=range(N)),
         rec = expand(os.path.join(data_dir, 'aln', 'jpHMM_output', 'FLT', '{n}', 'recombination.txt'), n=range(N))
     output:
-        msa = os.path.join(data_dir, 'aln', 'jpHMM_output', 'FLT', 'bk', 'alignment_to_msa.txt'),
-        rec = os.path.join(data_dir, 'aln', 'jpHMM_output', 'FLT', 'bk', 'recombination.txt')
+        msa = temp(os.path.join(data_dir, 'aln', 'jpHMM_output', 'FLT', 'bk', 'alignment_to_msa.txt')),
+        rec = temp(os.path.join(data_dir, 'aln', 'jpHMM_output', 'FLT', 'bk', 'recombination.txt'))
     params:
         mem = 1000,
         name = 'combine_FLT',
@@ -198,16 +200,39 @@ rule combine_jpHMM_output:
     threads: 1
     shell:
         """
-        cd {params.dir}
-        cat {params.dir}/*/recombination.txt > {params.dir}/bk/recombination.txt
-        cat {params.dir}/*/alignment_to_msa.txt > {params.dir}/bk/alignment_to_msa.txt
+        cat {params.dir}/*/recombination.txt > {output.rec}
+        cat {params.dir}/*/alignment_to_msa.txt > {output.msa}
+        sed -i 's/\#.*//g' {output.msa}
+        sed -i '/^$/d' {output.msa}
+        sed -i 's/\#.*//g' {output.rec}
+        sed -i '/^$/d' {output.rec}
+        """
+
+rule fix_jpHMM_output:
+    '''Replace the underscores in jpHMM sequence names with dots'''
+    input:
+        msa = os.path.join(data_dir, 'aln', 'jpHMM_output', 'FLT', 'bk', 'alignment_to_msa.txt'),
+        rec = os.path.join(data_dir, 'aln', 'jpHMM_output', 'FLT', 'bk', 'recombination.txt'),
+        data = os.path.join(data_dir, 'metadata', 'metadata.FLT.no_subtype.tab')
+    output:
+        msa = temp(os.path.join(data_dir, 'aln', 'jpHMM_output', 'FLT', 'alignment_to_msa.txt')),
+        rec = temp(os.path.join(data_dir, 'aln', 'jpHMM_output', 'FLT', 'recombination.txt'))
+    params:
+        mem = 1000,
+        name = 'rename',
+        qos = 'normal'
+    threads: 1
+    shell:
+        """
+        python3 py/rename_jphmm.py --in_file {input.msa} --out_file {output.msa} --map {input.data}
+        python3 py/rename_jphmm.py --in_file {input.rec} --out_file {output.rec} --map {input.data}
         """
 
 rule aln_jpHMM:
     '''Aligns sequences with jpHMM'''
     input:
         fa = os.path.join(data_dir, 'aln', 'sequences.FLT.fa'),
-        msa = os.path.join(data_dir, 'aln', 'jpHMM_output', 'FLT', 'bk', 'alignment_to_msa.txt'),
+        msa = os.path.join(data_dir, 'aln', 'jpHMM_output', 'FLT', 'alignment_to_msa.txt'),
         length = os.path.join(data_dir, 'input', 'HIV1_REF_2020_genome_DNA.length'),
     output:
         aln = temp(os.path.join(data_dir, 'aln', 'aln.FLT.fa')),
@@ -227,8 +252,8 @@ rule metadata_jpHMM:
     '''Adds jpHMM subtype to metadata.'''
     input:
         data = os.path.join(data_dir, 'metadata', 'metadata.FLT.no_subtype.tab'),
-        msa = os.path.join(data_dir, 'aln', 'jpHMM_output', 'FLT', 'bk', 'alignment_to_msa.txt'),
-        rec = os.path.join(data_dir, 'aln', 'jpHMM_output', 'FLT', 'bk', 'recombination.txt'),
+        msa = os.path.join(data_dir, 'aln', 'jpHMM_output', 'FLT', 'alignment_to_msa.txt'),
+        rec = os.path.join(data_dir, 'aln', 'jpHMM_output', 'FLT', 'recombination.txt'),
         aln = os.path.join(data_dir, 'input', 'HIV1_REF_2020_genome_DNA.fa'),
     output:
         data = os.path.join(data_dir, 'metadata', 'metadata.FLT.tab')
