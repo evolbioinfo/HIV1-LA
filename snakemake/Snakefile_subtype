@@ -16,6 +16,7 @@ localrules: all
 folder = os.path.abspath(config.get("folder", '..'))
 data_dir = os.path.join(folder, 'data')
 
+os.makedirs('logs', exist_ok=True)
 # The alignment will be split N chunks, which will be jpHMM-subtyped in parallel, and the results recombined.
 # N should be smaller than the number of sequences in the alignment
 N = 2000
