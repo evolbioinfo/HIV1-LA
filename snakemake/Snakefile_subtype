@@ -1,0 +1,240 @@
+import os
+
+# To run locally:
+# snakemake --snakefile Snakefile_subtype --keep-going --cores 4 --use-singularity --singularity-prefix ~/.singularity --singularity-args "--home ~"
+
+# To visualise the pipeline:
+# snakemake --snakefile Snakefile_subtype --dag | dot -Tsvg > pipeline_subtype.svg
+
+localrules: all
+
+folder = os.path.abspath(config.get("folder", '..'))
+data_dir = os.path.join(folder, 'data')
+
+# The alignment will be split N chunks, which will be jpHMM-subtyped in parallel, and the results recombined.
+# N should be smaller than the number of sequences in the alignment
+N = 2000
+
+rule all:
+    input:
+        os.path.join(data_dir, 'metadata', 'metadata.FLT.tab'),
+        os.path.join(data_dir, 'aln', 'aln.FLT.fa.xz'),
+
+
+rule metadata:
+    '''Extract metadata from alignment.'''
+    input:
+        aln = os.path.join(data_dir, 'input', 'HIV1_FLT_2021_genome_DNA.fasta.xz')
+    output:
+        data = temp(os.path.join(data_dir, 'metadata', 'metadata.FLT.no_subtype.tab'))
+    params:
+        mem = 2000,
+        name = 'metadata',
+        qos = 'fast'
+    threads: 1
+    singularity: "docker://evolbioinfo/python-evol:v3.6"
+    shell:
+        """
+        python3 py/la_metadata.py --in_aln {input.aln} --out_data {output.data}
+        """
+
+rule sequences:
+    '''
+    Unaligns input sequences.
+    '''
+    input:
+        aln = os.path.join(data_dir, 'input', 'HIV1_FLT_2021_genome_DNA.fasta.xz')
+    output:
+        fa = temp(os.path.join(data_dir, 'aln', 'sequences.FLT.fa'))
+    singularity:
+        "docker://evolbioinfo/goalign:v0.3.6"
+    params:
+        mem = 2000,
+        name = 'unalign',
+        qos = 'fast',
+    threads: 1
+    shell:
+        """
+        goalign unalign -i {input.aln} > {output.fa}
+        """
+
+
+rule xzip:
+    '''
+    Xzips the alignments.
+    '''
+    input:
+        aln = os.path.join(data_dir, 'aln', '{aln}.fa'),
+    output:
+        aln = os.path.join(data_dir, 'aln', '{aln}.fa.xz'),
+    params:
+        mem = 120000,
+        name = 'xz_{aln}',
+        qos = 'fast',
+    threads: 1
+    shell:
+        """
+        xz -zc {input.aln} > {output.aln}
+        """
+
+
+rule unxzip_LA_aln:
+    '''
+    Unxzips an input LA alignment.
+    '''
+    input:
+        fa = os.path.join(data_dir, 'input', 'HIV1_REF_2020_genome_DNA.fasta.xz')
+    output:
+        fa = temp(os.path.join(data_dir, 'input', 'HIV1_REF_2020_genome_DNA.fa'))
+    params:
+        mem = 120000,
+        name = 'unxz_ref',
+        qos = 'fast',
+        partition = 'common,dedicated,bioevo'
+    threads: 1
+    shell:
+        """
+        xz -dc {input.fa} > {output.fa}
+        """
+
+
+rule ref_jpHMM:
+    '''Transforms an official LA alignment into a reference file for jpHMM'''
+    input:
+        fa = os.path.join(data_dir, 'input', 'HIV1_REF_2020_genome_DNA.fa')
+    output:
+        fa = temp(os.path.join(data_dir, 'input', 'jpHMM_files', 'input', 'HIV1_REF_2020_genome_DNA.fa')),
+    params:
+        mem = 2000,
+        name = 'jphmm_ref',
+        qos = 'fast',
+    threads: 1
+    singularity: "docker://evolbioinfo/jphmm_tools:v0.1.2"
+    shell:
+        """
+        jphmm_ref --la_alignment {input.fa} --jphmm_ref_alignment {output.fa}
+        """
+
+rule aln_length:
+    '''
+    Calculates alignment length.
+    '''
+    input:
+        aln = os.path.join(data_dir, '{prefix}.fasta.xz'),
+    output:
+        length = os.path.join(data_dir, '{prefix}.length'),
+    singularity:
+        "docker://evolbioinfo/goalign:v0.3.6"
+    params:
+        mem = 2000,
+        name = 'aln_len',
+        qos = 'fast',
+    threads: 1
+    shell:
+        """
+        goalign stats length -i {input.aln} > {output.length}
+        """
+
+rule split_fa:
+    '''Splits fasta into chunks.'''
+    input:
+        fa = os.path.join(data_dir, 'aln', 'sequences.FLT.fa'),
+    output:
+        fa = temp(expand(os.path.join(data_dir, 'aln', 'split_aln', 'sequences.FLT.{n}.fa'), n=range(N)))
+    params:
+        mem = 1000,
+        name = 'split_fa',
+        fa = os.path.join(data_dir, 'aln', 'split_aln', 'sequences.FLT.{}.fa'),
+        qos = 'fast'
+    threads: 1
+    singularity: "docker://evolbioinfo/jphmm_tools:v0.1.4"
+    shell:
+        """
+        jphmm_split --out_fa_pattern {params.fa} --in_fa {input.fa} --n {N}
+        """
+
+rule subtype_jpHMM:
+    '''Subtypes sequences with jpHMM'''
+    input:
+        fa = os.path.join(data_dir, 'aln', 'split_aln', 'sequences.FLT.{n}.fa'),
+        emission_priors = os.path.join(data_dir, 'input', 'jpHMM_files', 'priors', 'emissionPriors_HIV.txt'),
+        transition_priors = os.path.join(data_dir, 'input', 'jpHMM_files', 'priors', 'transition_priors.txt'),
+        aln = os.path.join(data_dir, 'input', 'jpHMM_files', 'input', 'HIV1_REF_2020_genome_DNA.fa'),
+    output:
+        msa = temp(os.path.join(data_dir, 'aln', 'jpHMM_output', 'FLT', '{n}', 'alignment_to_msa.txt')),
+        rec = temp(os.path.join(data_dir, 'aln', 'jpHMM_output', 'FLT', '{n}', 'recombination.txt'))
+    params:
+        mem = 20000,
+        name = 'subtype_{n}',
+        output_dir = os.path.join(data_dir, 'aln', 'jpHMM_output', 'FLT', '{n}'),
+        qos = 'normal'
+    threads: 1
+    singularity: "docker://evolbioinfo/jphmm:v03.2015"
+    shell:
+        """
+        mkdir -p {params.output_dir}
+        echo "jpHMM -s {input.fa} -a {input.emission_priors} -b {input.transition_priors} -i {input.aln} -v HIV -o {params.output_dir}"
+        jpHMM -s {input.fa} -a {input.emission_priors} -b {input.transition_priors} -i {input.aln} -v HIV -o {params.output_dir}
+        """
+
+rule combine_jpHMM_output:
+    '''Combines jpHMM output files'''
+    input:
+        msa = expand(os.path.join(data_dir, 'aln', 'jpHMM_output', 'FLT', '{n}', 'alignment_to_msa.txt'), n=range(N)),
+        rec = expand(os.path.join(data_dir, 'aln', 'jpHMM_output', 'FLT', '{n}', 'recombination.txt'), n=range(N))
+    output:
+        msa = os.path.join(data_dir, 'aln', 'jpHMM_output', 'FLT', 'bk', 'alignment_to_msa.txt'),
+        rec = os.path.join(data_dir, 'aln', 'jpHMM_output', 'FLT', 'bk', 'recombination.txt')
+    params:
+        mem = 1000,
+        name = 'combine_FLT',
+        dir = os.path.join(data_dir, 'aln', 'jpHMM_output', 'FLT'),
+        qos = 'normal'
+    threads: 1
+    shell:
+        """
+        cd {params.dir}
+        cat {params.dir}/*/recombination.txt > {params.dir}/bk/recombination.txt
+        cat {params.dir}/*/alignment_to_msa.txt > {params.dir}/bk/alignment_to_msa.txt
+        """
+
+rule aln_jpHMM:
+    '''Aligns sequences with jpHMM'''
+    input:
+        fa = os.path.join(data_dir, 'aln', 'sequences.FLT.fa'),
+        msa = os.path.join(data_dir, 'aln', 'jpHMM_output', 'FLT', 'bk', 'alignment_to_msa.txt'),
+        length = os.path.join(data_dir, 'input', 'HIV1_REF_2020_genome_DNA.length'),
+    output:
+        aln = temp(os.path.join(data_dir, 'aln', 'aln.FLT.fa')),
+    params:
+        mem = 10000,
+        name = 'aln_jpHMM',
+        qos = 'fast'
+    threads: 1
+    singularity: "docker://evolbioinfo/jphmm_tools:v0.1.4"
+    shell:
+        """
+        jphmm_align --jphmm_msas {input.msa} --in_fas {input.fa} --out_aln {output.aln} \
+         --aln_len `head -n 1 {input.length}`
+        """
+
+rule metadata_jpHMM:
+    '''Adds jpHMM subtype to metadata.'''
+    input:
+        data = os.path.join(data_dir, 'metadata', 'metadata.FLT.no_subtype.tab'),
+        msa = os.path.join(data_dir, 'aln', 'jpHMM_output', 'FLT', 'bk', 'alignment_to_msa.txt'),
+        rec = os.path.join(data_dir, 'aln', 'jpHMM_output', 'FLT', 'bk', 'recombination.txt'),
+        aln = os.path.join(data_dir, 'input', 'HIV1_REF_2020_genome_DNA.fa'),
+    output:
+        data = os.path.join(data_dir, 'metadata', 'metadata.FLT.tab')
+    params:
+        mem = 2000,
+        name = 'metadata_subtyped',
+        qos = 'fast'
+    threads: 1
+    singularity: "docker://evolbioinfo/jphmm_tools:v0.1.4"
+    shell:
+        """
+        python3 py/add_jphmm_subtype.py --in_data {input.data} --out_data {output.data} \
+        --in_msa {input.msa} --in_rec {input.rec} --ref_aln {input.aln}
+        """
