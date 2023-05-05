@@ -70,7 +70,7 @@ rule raxml:
     shell:
         """
         raxml-ng --model GTR+G4+FO+IO --msa {input.aln} \
-        --seed 239 --threads {threads} --force --tree pars{{5}}
+        --seed 239 --threads {threads} --force --tree pars{{1}}
         cp {input.aln}.raxml.bestTree {output.tree}
         cp {input.aln}.raxml.log {output.log}
         rm -rf {input.aln}.raxml.*
