@@ -17,5 +17,4 @@ if '__main__' == __name__:
     for subtype in params.subtype:
         ids.extend(list(df[df['generalized_subtype'] == subtype].index))
     with open(params.outgroup, 'w+') as f:
-        f.write('{}\n'.format(len(ids)))
         f.write('\n'.join(ids))
