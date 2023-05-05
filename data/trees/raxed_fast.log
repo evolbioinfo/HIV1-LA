@@ -1,0 +1,91 @@
+
+RAxML-NG v. 1.1-master released on 29.11.2021 by The Exelixis Lab.
+Developed by: Alexey M. Kozlov and Alexandros Stamatakis.
+Contributors: Diego Darriba, Tomas Flouri, Benoit Morel, Sarah Lutteropp, Ben Bettisworth.
+Latest version: https://github.com/amkozlov/raxml-ng
+Questions/problems/suggestions? Please visit: https://groups.google.com/forum/#!forum/raxml
+
+System: AMD EPYC 7552 48-Core Processor, 96 cores, 503 GB RAM
+
+RAxML-NG was called at 04-May-2023 15:04:48 as follows:
+
+raxml-ng --evaluate --model GTR+G4+FO+IO --msa /pasteur/zeus/projets/p01/Evolbioinfo/users/azhukova/projects/HIV1-LA/data/aln/aln.FLT.filtered.fa.fast --msa-format FASTA --data-type DNA --tree /pasteur/zeus/projets/p01/Evolbioinfo/users/azhukova/projects/HIV1-LA/data/trees/fast.resolved.nwk --threads 4 --force --seed 239
+
+Analysis options:
+  run mode: Evaluate tree likelihood
+  start tree(s): user
+  random seed: 239
+  tip-inner: OFF
+  pattern compression: ON
+  per-rate scalers: OFF
+  site repeats: ON
+  branch lengths: proportional (ML estimate, algorithm: NR-FAST)
+  SIMD kernels: AVX2
+  parallelization: coarse-grained (auto), PTHREADS (4 threads), thread pinning: OFF
+
+WARNING: Running in FORCE mode: all safety checks are disabled!
+
+[00:00:00] Reading alignment from file: /pasteur/zeus/projets/p01/Evolbioinfo/users/azhukova/projects/HIV1-LA/data/aln/aln.FLT.filtered.fa.fast
+[00:00:00] Loaded alignment with 2567 taxa and 12180 sites
+
+Alignment comprises 1 partitions and 8423 patterns
+
+Partition 0: noname
+Model: GTR+FO+I+G4m
+Alignment sites / patterns: 12180 / 8423
+Gaps: 29.88 %
+Invariant sites: 4.06 %
+
+
+NOTE: Binary MSA file created: /pasteur/zeus/projets/p01/Evolbioinfo/users/azhukova/projects/HIV1-LA/data/aln/aln.FLT.filtered.fa.fast.raxml.rba
+
+Parallelization scheme autoconfig: 1 worker(s) x 4 thread(s)
+
+
+NOTE: Per-rate scalers were automatically enabled to prevent numerical issues on taxa-rich alignments.
+NOTE: You can use --force switch to skip this check and fall back to per-site scalers.
+
+Parallel reduction/worker buffer size: 1 KB  / 0 KB
+
+[00:00:00] Loading user starting tree(s) from: /pasteur/zeus/projets/p01/Evolbioinfo/users/azhukova/projects/HIV1-LA/data/trees/fast.resolved.nwk
+[00:00:00] Data distribution: max. partitions/sites/weight per thread: 1 / 2106 / 33696
+[00:00:00] Data distribution: max. searches per worker: 1
+
+Evaluating 1 trees
+
+[00:00:00] Tree #1, initial LogLikelihood: -4697593.610482
+
+[00:00:01 -4697593.610482] Initial branch length optimization
+[00:00:09 -4691136.337069] Model parameter optimization (eps = 0.100000)
+
+[00:11:20] Tree #1, final logLikelihood: -4370391.349177
+
+
+Optimized model parameters:
+
+   Partition 0: noname
+   Rate heterogeneity: GAMMA (4 cats, mean),  alpha: 0.510687 (ML),  weights&rates: (0.250000,0.035385) (0.250000,0.258835) (0.250000,0.827891) (0.250000,2.877889) 
+   P-inv (ML): 0.039427
+   Base frequencies (ML): 0.458944 0.163222 0.195150 0.182685 
+   Substitution rates (ML): 1.178908 3.261624 0.553860 0.803469 5.145915 1.000000 
+
+
+Final LogLikelihood: -4370391.349177
+
+AIC score: 8751064.698355 / AICc score: 8758576.781901 / BIC score: 8789146.915687
+Free parameters (model + branch lengths): 5141
+
+WARNING: Best ML tree contains 1 near-zero branches!
+
+Best ML tree with collapsed near-zero branches saved to: /pasteur/zeus/projets/p01/Evolbioinfo/users/azhukova/projects/HIV1-LA/data/aln/aln.FLT.filtered.fa.fast.raxml.bestTreeCollapsed
+Best ML tree saved to: /pasteur/zeus/projets/p01/Evolbioinfo/users/azhukova/projects/HIV1-LA/data/aln/aln.FLT.filtered.fa.fast.raxml.bestTree
+Optimized model saved to: /pasteur/zeus/projets/p01/Evolbioinfo/users/azhukova/projects/HIV1-LA/data/aln/aln.FLT.filtered.fa.fast.raxml.bestModel
+
+Execution log saved to: /pasteur/zeus/projets/p01/Evolbioinfo/users/azhukova/projects/HIV1-LA/data/aln/aln.FLT.filtered.fa.fast.raxml.log
+
+Analysis started: 04-May-2023 15:04:48 / finished: 04-May-2023 15:16:09
+
+Elapsed time: 680.904 seconds
+
+Consumed energy: 40.560 Wh
+
