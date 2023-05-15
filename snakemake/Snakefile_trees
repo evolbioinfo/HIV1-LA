@@ -177,7 +177,7 @@ rule xzip:
         aln = os.path.join(data_dir, 'aln', 'aln.FLT.filtered.og.fa.xz'),
     params:
         mem = 6000,
-        name = 'xz_{aln}',
+        name = 'xz',
         qos = 'fast',
     threads: 1
     shell:
