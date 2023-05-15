@@ -174,7 +174,7 @@ rule xzip:
     input:
         aln = os.path.join(data_dir, 'aln', 'aln.FLT.filtered.og.fa'),
     output:
-        aln = os.path.join(data_dir, 'aln', 'aln.FLT.filtered.og.xz'),
+        aln = os.path.join(data_dir, 'aln', 'aln.FLT.filtered.og.fa.xz'),
     params:
         mem = 6000,
         name = 'xz_{aln}',
