@@ -16,7 +16,7 @@ data_dir = os.path.join(folder, 'data')
 
 rule all:
     input:
-        os.path.join(data_dir, 'timetrees', 'raxed_fast.nwk')
+        expand(os.path.join(data_dir, 'timetrees', '{tree}.{clock}.nwk'), tree=['raxml', 'raxed_fast'], clock=['local', 'strict'])
 
 
 rule extract_ids:
@@ -123,6 +123,39 @@ rule extract_partition_lsd2:
         --in_nwk {input.tree} --out_nwk {output.tree} --subtype_col "generalized_subtype" --outgroup {output.og}
         """
 
+rule date_lsd2_no_part:
+    '''
+    Date a tree.
+    '''
+    input:
+        tree = os.path.join(data_dir, 'trees', 'named_{tree}.nwk'),
+        length = os.path.join(data_dir, 'aln', 'aln.FLT.filtered.length'),
+        dates = os.path.join(data_dir, 'metadata', 'lsd2.dates'),
+        partition = os.path.join(data_dir, 'metadata', 'lsd2.{tree}.partition'),
+        outgroup = os.path.join(data_dir, 'metadata', 'lsd2.{tree}.outgroup'),
+    output:
+        tree = os.path.join(data_dir, 'timetrees', '{tree}.strict.nexus'),
+        log = os.path.join(data_dir, 'timetrees', '{tree}.strict.log'),
+    threads: 1
+    singularity: "docker://evolbioinfo/lsd2:v2.3"
+    params:
+        mem = 4000,
+        name = 'lsd2',
+        wd = os.path.join(data_dir, 'timetrees', '{tree}.lsd2.strict.wd'),
+        qos = 'fast'
+    shell:
+        """
+        n=`head {input.length}`
+
+        lsd2 -i {input.tree} -d {input.dates} -s $n -o {params.wd} -r a -e 3 -f 100
+
+        mv "{params.wd}.date.nexus" "{output.tree}"
+        mv "{params.wd}" "{output.log}"
+        rm "{params.wd}.nwk"
+        rm -rf "{params.wd}*"
+        """
+
+
 rule date_lsd2:
     '''
     Date a tree.
@@ -134,26 +167,27 @@ rule date_lsd2:
         partition = os.path.join(data_dir, 'metadata', 'lsd2.{tree}.partition'),
         outgroup = os.path.join(data_dir, 'metadata', 'lsd2.{tree}.outgroup'),
     output:
-        tree = os.path.join(data_dir, 'timetrees', '{tree}.nexus'),
-        log = os.path.join(data_dir, 'timetrees', '{tree}.log'),
+        tree = os.path.join(data_dir, 'timetrees', '{tree}.local.nexus'),
+        log = os.path.join(data_dir, 'timetrees', '{tree}.local.log'),
     threads: 1
     singularity: "docker://evolbioinfo/lsd2:v2.3"
     params:
         mem = 4000,
         name = 'lsd2',
-        wd = os.path.join(data_dir, 'timetrees', '{tree}.lsd2.wd'),
+        wd = os.path.join(data_dir, 'timetrees', '{tree}.lsd2.local.wd'),
         qos = 'fast'
     shell:
         """
         n=`head {input.length}`
 
-        lsd2 -i {input.tree} -d {input.dates} -s $n -o {params.wd} -f 1000 -g {input.outgroup} -p {input.partition}
+        lsd2 -i {input.tree} -d {input.dates} -s $n -o {params.wd} -e 3 -g {input.outgroup} -p {input.partition} -f 100
 
         mv "{params.wd}.date.nexus" "{output.tree}"
         mv "{params.wd}" "{output.log}"
         rm "{params.wd}.nwk"
         rm -rf "{params.wd}*"
         """
+# -f 1000 -g {input.outgroup} -p {input.partition}
 
 rule nex2nwk:
     '''
