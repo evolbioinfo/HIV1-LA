@@ -13,52 +13,9 @@ ruleorder: nex2nwk > date_lsd2
 folder = os.path.abspath(config.get("folder", '..'))
 data_dir = os.path.join(folder, 'data')
 
-
 rule all:
     input:
         expand(os.path.join(data_dir, 'timetrees', '{tree}.{clock}.nwk'), tree=['raxml', 'raxed_fast'], clock=['local', 'strict'])
-
-
-rule extract_ids:
-    '''
-    Extracts A and G sequence ids.
-    '''
-    input:
-        tab = os.path.join(data_dir, 'metadata', 'metadata.FLT.tab'),
-    output:
-        outgroup = os.path.join(data_dir, 'metadata', 'ids_AG.tab'),
-    params:
-        mem = 1000,
-        name = 'ids_AG',
-        date_col = 'sample_date'
-    threads: 1
-    singularity: "docker://evolbioinfo/python-evol:v3.6richer"
-    shell:
-        """
-        python3 py/get_seq_ids.py --input_data {input.tab} --outgroup {output.outgroup} \
-        --subtype A G
-        """
-
-rule preroot:
-    '''
-    Preroots a tree with an outgroup.
-    '''
-    input:
-        tree = os.path.join(data_dir, 'trees', '{tree}.nwk'),
-        outgroup = os.path.join(data_dir, 'metadata', 'ids_AG.tab'),
-    output:
-        tree = os.path.join(data_dir, 'trees', 'rooted_{tree}.nwk'),
-    singularity:
-        "docker://evolbioinfo/gotree:v0.3.0b"
-    params:
-        mem = 2000,
-        name = 'root',
-        qos = 'fast'
-    threads: 1
-    shell:
-        """
-        gotree support clear -i {input.tree} | gotree reroot outgroup -l {input.outgroup} -o {output.tree}
-        """
 
 rule aln_length:
     '''
@@ -108,9 +65,8 @@ rule extract_partition_lsd2:
         tree = os.path.join(data_dir, 'trees', 'rooted_{tree}.nwk'),
         tab = os.path.join(data_dir, 'metadata', 'metadata.FLT.tab'),
     output:
-        og = os.path.join(data_dir, 'metadata', 'lsd2.{tree}.outgroup'),
         tab = os.path.join(data_dir, 'metadata', 'lsd2.{tree}.partition'),
-        tree = os.path.join(data_dir, 'trees', 'named_{tree}.nwk'),
+        tree = os.path.join(data_dir, 'trees', 'named_rooted_{tree}.nwk'),
     params:
         mem = 1000,
         name = 'lsd2_dates',
@@ -128,11 +84,9 @@ rule date_lsd2_no_part:
     Date a tree.
     '''
     input:
-        tree = os.path.join(data_dir, 'trees', 'named_{tree}.nwk'),
+        tree = os.path.join(data_dir, 'trees', 'named_rooted_{tree}.nwk'),
         length = os.path.join(data_dir, 'aln', 'aln.FLT.filtered.length'),
-        dates = os.path.join(data_dir, 'metadata', 'lsd2.dates'),
-        partition = os.path.join(data_dir, 'metadata', 'lsd2.{tree}.partition'),
-        outgroup = os.path.join(data_dir, 'metadata', 'lsd2.{tree}.outgroup'),
+        dates = os.path.join(data_dir, 'metadata', 'lsd2.dates')
     output:
         tree = os.path.join(data_dir, 'timetrees', '{tree}.strict.nexus'),
         log = os.path.join(data_dir, 'timetrees', '{tree}.strict.log'),
@@ -147,7 +101,7 @@ rule date_lsd2_no_part:
         """
         n=`head {input.length}`
 
-        lsd2 -i {input.tree} -d {input.dates} -s $n -o {params.wd} -r a -e 3 -f 100
+        lsd2 -i {input.tree} -d {input.dates} -s $n -o {params.wd} -e 3 -f 100
 
         mv "{params.wd}.date.nexus" "{output.tree}"
         mv "{params.wd}" "{output.log}"
@@ -161,11 +115,10 @@ rule date_lsd2:
     Date a tree.
     '''
     input:
-        tree = os.path.join(data_dir, 'trees', 'named_{tree}.nwk'),
+        tree = os.path.join(data_dir, 'trees', 'named_rooted_{tree}.nwk'),
         length = os.path.join(data_dir, 'aln', 'aln.FLT.filtered.length'),
         dates = os.path.join(data_dir, 'metadata', 'lsd2.dates'),
         partition = os.path.join(data_dir, 'metadata', 'lsd2.{tree}.partition'),
-        outgroup = os.path.join(data_dir, 'metadata', 'lsd2.{tree}.outgroup'),
     output:
         tree = os.path.join(data_dir, 'timetrees', '{tree}.local.nexus'),
         log = os.path.join(data_dir, 'timetrees', '{tree}.local.log'),
@@ -180,14 +133,13 @@ rule date_lsd2:
         """
         n=`head {input.length}`
 
-        lsd2 -i {input.tree} -d {input.dates} -s $n -o {params.wd} -e 3 -g {input.outgroup} -p {input.partition} -f 100
+        lsd2 -i {input.tree} -d {input.dates} -s $n -o {params.wd} -e 3 -p {input.partition} -f 100
 
         mv "{params.wd}.date.nexus" "{output.tree}"
         mv "{params.wd}" "{output.log}"
         rm "{params.wd}.nwk"
         rm -rf "{params.wd}*"
         """
-# -f 1000 -g {input.outgroup} -p {input.partition}
 
 rule nex2nwk:
     '''

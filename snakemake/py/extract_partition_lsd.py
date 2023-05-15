@@ -12,7 +12,6 @@ if '__main__' == __name__:
     parser.add_argument('--partition', required=True, type=str)
     parser.add_argument('--in_nwk', required=True, type=str)
     parser.add_argument('--out_nwk', required=True, type=str)
-    parser.add_argument('--outgroup', required=True, type=str)
     parser.add_argument('--subtype_col', required=False, default='generalized_subtype', type=str)
     params = parser.parse_args()
 
@@ -35,12 +34,6 @@ if '__main__' == __name__:
         st2count[st] += 1
         st2root[st] = n.name
 
-    child = min(tree.children, key=len)
-    with open(params.outgroup, 'w+') as f:
-        f.write('{}\n'.format(len(child)))
-        f.write('\n'.join(_.name for _ in child))
-
-    tree.unroot()
     tree.write(outfile=params.out_nwk, format=3)
 
     with open(params.partition, 'w+') as f:
