@@ -18,7 +18,6 @@ import os
 
 
 localrules: all
-ruleorder: optimise_branch_lengths > raxml > fasttree
 
 folder = os.path.abspath(config.get("folder", '..'))
 data_dir = os.path.join(folder, 'data')
@@ -30,7 +29,8 @@ trees = ['raxml', 'raxed_fast']
 
 rule all:
     input:
-        expand(os.path.join(data_dir, 'trees', '{tree}.nwk'), tree=trees),
+        expand(os.path.join(data_dir, 'trees', 'rooted_{tree}.nwk'), tree=trees),
+        os.path.join(data_dir, 'aln', 'aln.og.fa.xz')
 
 
 rule unxzip:
@@ -61,6 +61,7 @@ rule raxml:
     output:
         tree = os.path.join(data_dir, 'trees', 'raxml.nwk'),
         log = os.path.join(data_dir, 'trees', 'raxml.log'),
+        model = os.path.join(data_dir, 'trees', 'raxml.model'),
     threads: 12
     singularity: "docker://evolbioinfo/raxml-ng:v1.1.0"
     params:
@@ -69,11 +70,13 @@ rule raxml:
         qos = 'normal'
     shell:
         """
-        raxml-ng --model GTR+G4+FO+IO --msa {input.aln} \
+        cp {input.aln} {input.aln}.{wildcards.tree}_r
+        raxml-ng --model GTR+G4+FO+IO --msa {input.aln}.{wildcards.tree}_r \
         --seed 239 --threads {threads} --force --tree pars{{1}}
-        cp {input.aln}.raxml.bestTree {output.tree}
-        cp {input.aln}.raxml.log {output.log}
-        rm -rf {input.aln}.raxml.*
+        cp {input.aln}.{wildcards.tree}_r.raxml.bestTree {output.tree}
+        cp {input.aln}.{wildcards.tree}_r.raxml.bestModel {output.model}
+        cp {input.aln}.{wildcards.tree}_r.raxml.log {output.log}
+        rm -rf {input.aln}.{wildcards.tree}_r*
         """
 
 
@@ -126,6 +129,7 @@ rule optimise_branch_lengths:
     output:
         tree = os.path.join(data_dir, 'trees', 'raxed_{tree}.nwk'),
         log = os.path.join(data_dir, 'trees', 'raxed_{tree}.log'),
+        model = os.path.join(data_dir, 'trees', 'raxed_{tree}.model'),
     threads: 4
     singularity: "docker://evolbioinfo/raxml-ng:v1.1.0"
     params:
@@ -133,10 +137,171 @@ rule optimise_branch_lengths:
         name = 'raxbr_{tree}',
     shell:
         """
-        cp {input.aln} {input.aln}.{wildcards.tree}
-        raxml-ng --evaluate --model GTR+G4+FO+IO --msa {input.aln}.{wildcards.tree} --msa-format FASTA --data-type DNA \
+        cp {input.aln} {input.aln}.{wildcards.tree}_rf
+        raxml-ng --evaluate --model GTR+G4+FO+IO --msa {input.aln}.{wildcards.tree}_rf --msa-format FASTA --data-type DNA \
         --tree {input.tree} --threads {threads} --force --seed 239
-        cp {input.aln}.{wildcards.tree}.raxml.bestTree {output.tree}
-        cp {input.aln}.{wildcards.tree}.raxml.log {output.log}
-        rm -rf {input.aln}.{wildcards.tree}*
+        cp {input.aln}.{wildcards.tree}_rf.raxml.bestTree {output.tree}
+        cp {input.aln}.{wildcards.tree}_rf.raxml.bestModel {output.model}
+        cp {input.aln}.{wildcards.tree}_rf.raxml.log {output.log}
+        rm -rf {input.aln}.{wildcards.tree}_rf*
         """
+
+rule aln_against_reference:
+    '''
+    Aligns the outgroup sequence against the ingroup alignment.
+    '''
+    input:
+        fa = os.path.join(data_dir, 'input', 'N.fasta'),
+        ref = os.path.join(data_dir, 'aln', 'aln.FLT.filtered.fa'),
+    output:
+        aln = temp(os.path.join(data_dir, 'aln', 'aln.og.fa'))
+    params:
+        mem = 1000,
+        name = 'aln',
+        qos = 'fast'
+    threads: 12
+    singularity: "docker://evolbioinfo/mafft:v7.313"
+    shell:
+        """
+        mafft --thread {threads} --memsave --retree 1 --maxiterate 0 --add {input.fa} \
+        --keeplength {input.ref} > {output.aln}
+        """
+
+rule xzip:
+    '''
+    Xzips the alignments.
+    '''
+    input:
+        aln = os.path.join(data_dir, 'aln', '{aln}'),
+    output:
+        aln = os.path.join(data_dir, 'aln', '{aln}.xz'),
+    params:
+        mem = 6000,
+        name = 'xz_{aln}',
+        qos = 'fast',
+    threads: 1
+    shell:
+        """
+        xz -zc {input.aln} > {output.aln}
+        """
+
+# rule extract_og_aln:
+#     '''
+#     Extracts the aligned outgroup from the MSA.
+#     '''
+#     input:
+#         fa = os.path.join(data_dir, 'input', 'N.fasta'),
+#         aln = temp(os.path.join(data_dir, 'aln', 'aln.og.fa'))
+#     output:
+#         aln = os.path.join(data_dir, 'aln', 'outgroup.fa')
+#     params:
+#         mem = 1000,
+#         name = 'aln',
+#         qos = 'fast'
+#     threads: 1
+#     singularity: "docker://evolbioinfo/goalign:v0.3.6"
+#     shell:
+#         """
+#         grep ">" {input.fa} | sed 's/>//g' > {output.aln}.name
+#         goalign subset -f {output.aln}.name -i {input.aln} -o {output.aln}
+#         rm -rf {output.aln}.name
+#         """
+
+rule insert_og_raxml:
+    '''
+    Inserts the outgroup with RAxML.
+    '''
+    input:
+        aln = os.path.join(data_dir, 'aln', 'aln.og.fa'),
+        tree = os.path.join(data_dir, 'trees', '{tree}.nwk'),
+        starttree = os.path.join(data_dir, 'trees', '{tree}.nwk'),
+        model = os.path.join(data_dir, 'trees', '{tree}.model'),
+    output:
+        tree = os.path.join(data_dir, 'trees', '{tree}.og.nwk'),
+        log = os.path.join(data_dir, 'trees', '{tree}.og.log'),
+    threads: 12
+    singularity: "docker://evolbioinfo/raxml-ng:v1.1.0"
+    params:
+        mem = 40000,
+        name = 'raxml_og',
+        qos = 'normal'
+    shell:
+        """
+        cp {input.aln} {input.aln}.{wildcards.tree}_p       
+        raxml-ng --model {input.model} --msa {input.aln}.{wildcards.tree}_p --tree pars{{1}}\
+        --seed 239 --threads {threads} --force --tree-constraint {input.tree}
+        cp {input.aln}.{wildcards.tree}_p.raxml.bestTree {output.tree}
+        cp {input.aln}.{wildcards.tree}_p.raxml.log {output.log}
+        rm -rf {input.aln}.{wildcards.tree}_p*
+        """
+
+rule root:
+    '''
+    Roots a tree with an outgroup.
+    '''
+    input:
+        tree = os.path.join(data_dir, 'trees', '{tree}.og.nwk'),
+        fa = os.path.join(data_dir, 'input', 'N.fasta'),
+    output:
+        tree = os.path.join(data_dir, 'trees', 'rooted_{tree}.nwk'),
+    singularity:
+        "docker://evolbioinfo/gotree:v0.3.0b"
+    params:
+        mem = 2000,
+        name = 'root',
+        qos = 'fast'
+    threads: 1
+    shell:
+        """
+        grep ">" {input.fa} | sed 's/>//g' > {output.tree}.og 
+        gotree support clear -i {input.tree} | gotree reroot outgroup -l {output.tree}.og -o {output.tree} -r
+        rm -rf {output.tree}.og 
+        """
+
+
+# rule insert_og:
+#     '''
+#     Inserts the outgroup into the tree.
+#     '''
+#     input:
+#         aln = os.path.join(data_dir, 'aln', 'aln.FLT.filtered.fa'),
+#         tree = os.path.join(data_dir, 'trees', '{tree}.nwk'),
+#         model = os.path.join(data_dir, 'trees', '{tree}.model'),
+#         og = os.path.join(data_dir, 'aln', 'outgroup.fa')
+#     output:
+#         placement = os.path.join(data_dir, 'trees', 'rooted_{tree}.placement'),
+#     threads: 12
+#     singularity: "docker://evolbioinfo/epa-ng:v0.3.8"
+#     params:
+#         mem = 40000,
+#         name='epa',
+#         qos='normal'
+#     shell:
+#         """
+#         rm -rf {input.tree}_epa
+#         mkdir {input.tree}_epa
+#         epa-ng --ref-msa {input.aln} --tree {input.tree} --query {input.og} --model {input.model} --outdir {input.tree}_epa
+#         mv {input.tree}_epa/epa_result.jplace {output.placement}
+#         rm -rf {input.tree}_epa
+#         """
+#
+#
+# rule process_placement:
+#     '''
+#     Roots the tree according to the outgroup placement.
+#     '''
+#     input:
+#         tree = os.path.join(data_dir, 'trees', '{tree}.nwk'),
+#         placement = os.path.join(data_dir, 'trees', 'rooted_{tree}.placement'),
+#     output:
+#         tree = os.path.join(data_dir, 'trees', 'rooted_{tree}.nwk'),
+#     threads: 1
+#     singularity: "docker://evolbioinfo/python-evol:v3.8.2"
+#     params:
+#         mem = 40000,
+#         name='epa',
+#         qos='normal'
+#     shell:
+#         """
+#         python3 py/place.py --in_nwk {input.tree} --out_nwk {output.tree} --placement {input.placement}
+#         """
