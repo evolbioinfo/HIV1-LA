@@ -1,0 +1,103 @@
+
+RAxML-NG v. 1.1-master released on 29.11.2021 by The Exelixis Lab.
+Developed by: Alexey M. Kozlov and Alexandros Stamatakis.
+Contributors: Diego Darriba, Tomas Flouri, Benoit Morel, Sarah Lutteropp, Ben Bettisworth.
+Latest version: https://github.com/amkozlov/raxml-ng
+Questions/problems/suggestions? Please visit: https://groups.google.com/forum/#!forum/raxml
+
+System: AMD EPYC 7552 48-Core Processor, 96 cores, 503 GB RAM
+
+RAxML-NG was called at 15-May-2023 12:48:57 as follows:
+
+raxml-ng --model /pasteur/zeus/projets/p01/Evolbioinfo/users/azhukova/projects/HIV1-LA/data/trees/raxml.model --msa /pasteur/zeus/projets/p01/Evolbioinfo/users/azhukova/projects/HIV1-LA/data/aln/aln.FLT.filtered.og.fa.raxml_p --tree pars{1} --seed 239 --threads 12 --force --tree-constraint /pasteur/zeus/projets/p01/Evolbioinfo/users/azhukova/projects/HIV1-LA/data/trees/raxml.nwk
+
+Analysis options:
+  run mode: ML tree search
+  start tree(s): parsimony (1)
+  topological constraint: /pasteur/zeus/projets/p01/Evolbioinfo/users/azhukova/projects/HIV1-LA/data/trees/raxml.nwk (algorithm: NEW)
+  random seed: 239
+  tip-inner: OFF
+  pattern compression: ON
+  per-rate scalers: OFF
+  site repeats: ON
+  fast spr radius: AUTO
+  spr subtree cutoff: 1.000000
+  branch lengths: proportional (ML estimate, algorithm: NR-FAST)
+  SIMD kernels: AVX2
+  parallelization: coarse-grained (auto), PTHREADS (12 threads), thread pinning: OFF
+
+WARNING: Running in FORCE mode: all safety checks are disabled!
+
+[00:00:00] Reading alignment from file: /pasteur/zeus/projets/p01/Evolbioinfo/users/azhukova/projects/HIV1-LA/data/aln/aln.FLT.filtered.og.fa.raxml_p
+[00:00:00] Loaded alignment with 2568 taxa and 12180 sites
+
+Alignment comprises 1 partitions and 8425 patterns
+
+Partition 0: noname
+Model: GTR{1.12534/3.20251/0.560259/0.752149/5.02065/1}+FU{0.458329/0.167879/0.195749/0.178043}+IU{0.039425}+G4m{0.51113}
+Alignment sites / patterns: 12180 / 8425
+Gaps: 29.88 %
+Invariant sites: 4.04 %
+
+
+NOTE: Binary MSA file created: /pasteur/zeus/projets/p01/Evolbioinfo/users/azhukova/projects/HIV1-LA/data/aln/aln.FLT.filtered.og.fa.raxml_p.raxml.rba
+
+[00:00:00] Loading constraint tree from: /pasteur/zeus/projets/p01/Evolbioinfo/users/azhukova/projects/HIV1-LA/data/trees/raxml.nwk
+[00:00:00] Loaded non-comprehensive constraint tree with 2567 taxa
+
+Parallelization scheme autoconfig: 1 worker(s) x 12 thread(s)
+
+
+NOTE: Per-rate scalers were automatically enabled to prevent numerical issues on taxa-rich alignments.
+NOTE: You can use --force switch to skip this check and fall back to per-site scalers.
+
+Parallel reduction/worker buffer size: 1 KB  / 0 KB
+
+[00:00:00] Generating 1 parsimony starting tree(s) with 2568 taxa
+[00:00:01] Data distribution: max. partitions/sites/weight per thread: 1 / 703 / 11248
+[00:00:01] Data distribution: max. searches per worker: 1
+
+Starting ML tree search with 1 distinct starting trees
+
+[00:00:02 -4757995.922712] Initial branch length optimization
+[00:00:13 -4366627.170912] Model parameter optimization (eps = 10.000000)
+[00:00:14 -4366626.637767] AUTODETECT spr round 1 (radius: 5)
+[00:03:53 -4366626.595182] SPR radius for FAST iterations: 5 (autodetect)
+[00:03:53 -4366626.595182] Model parameter optimization (eps = 3.000000)
+[00:03:54 -4366626.588238] FAST spr round 1 (radius: 5)
+[00:07:33 -4366626.585307] Model parameter optimization (eps = 1.000000)
+[00:07:33 -4366626.584991] SLOW spr round 1 (radius: 5)
+[00:11:12 -4366626.584811] SLOW spr round 2 (radius: 10)
+[00:14:46 -4366626.584780] SLOW spr round 3 (radius: 15)
+[00:18:27 -4366626.584775] SLOW spr round 4 (radius: 20)
+[00:22:11 -4366626.584774] SLOW spr round 5 (radius: 25)
+[00:25:54 -4366626.584774] Model parameter optimization (eps = 0.100000)
+
+[00:25:55] ML tree search #1, logLikelihood: -4366626.584774
+
+
+Optimized model parameters:
+
+   Partition 0: noname
+   Rate heterogeneity: GAMMA (4 cats, mean),  alpha: 0.511130 (user),  weights&rates: (0.250000,0.035469) (0.250000,0.259120) (0.250000,0.828201) (0.250000,2.877211) 
+   P-inv (user): 0.039425
+   Base frequencies (user): 0.458329 0.167879 0.195749 0.178043 
+   Substitution rates (user): 1.125337 3.202509 0.560259 0.752149 5.020651 1.000000 
+
+
+Final LogLikelihood: -4366626.584774
+
+AIC score: 8743519.169548 / AICc score: 8750999.391518 / BIC score: 8781542.126476
+Free parameters (model + branch lengths): 5133
+
+Best ML tree saved to: /pasteur/zeus/projets/p01/Evolbioinfo/users/azhukova/projects/HIV1-LA/data/aln/aln.FLT.filtered.og.fa.raxml_p.raxml.bestTree
+Optimized model saved to: /pasteur/zeus/projets/p01/Evolbioinfo/users/azhukova/projects/HIV1-LA/data/aln/aln.FLT.filtered.og.fa.raxml_p.raxml.bestModel
+
+Execution log saved to: /pasteur/zeus/projets/p01/Evolbioinfo/users/azhukova/projects/HIV1-LA/data/aln/aln.FLT.filtered.og.fa.raxml_p.raxml.log
+
+Analysis started: 15-May-2023 12:48:57 / finished: 15-May-2023 13:14:53
+
+Elapsed time: 1555.817 seconds
+
+Consumed energy: 118.429 Wh
+
