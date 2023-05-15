@@ -172,9 +172,9 @@ rule xzip:
     Xzips the alignments.
     '''
     input:
-        aln = os.path.join(data_dir, 'aln', 'aln.FLT.filtered.fa'),
+        aln = os.path.join(data_dir, 'aln', 'aln.FLT.filtered.og.fa'),
     output:
-        aln = os.path.join(data_dir, 'aln', 'aln.FLT.filtered.xz'),
+        aln = os.path.join(data_dir, 'aln', 'aln.FLT.filtered.og.xz'),
     params:
         mem = 6000,
         name = 'xz_{aln}',
