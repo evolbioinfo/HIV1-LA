@@ -30,7 +30,7 @@ trees = ['raxml', 'raxed_fast']
 rule all:
     input:
         expand(os.path.join(data_dir, 'trees', 'rooted_{tree}.nwk'), tree=trees),
-        os.path.join(data_dir, 'aln', 'aln.og.fa.xz')
+        os.path.join(data_dir, 'aln', 'aln.FLT.filtered.og.fa.xz')
 
 
 rule unxzip:
@@ -52,32 +52,32 @@ rule unxzip:
         xz -dc {input.fa} > {output.fa}
         """
 
-rule raxml:
-    '''
-    Reconstructs a tree with RAxML.
-    '''
-    input:
-        aln = os.path.join(data_dir, 'aln', 'aln.FLT.filtered.fa')
-    output:
-        tree = os.path.join(data_dir, 'trees', 'raxml.nwk'),
-        log = os.path.join(data_dir, 'trees', 'raxml.log'),
-        model = os.path.join(data_dir, 'trees', 'raxml.model'),
-    threads: 12
-    singularity: "docker://evolbioinfo/raxml-ng:v1.1.0"
-    params:
-        mem = 40000,
-        name = 'raxml',
-        qos = 'normal'
-    shell:
-        """
-        cp {input.aln} {input.aln}.{wildcards.tree}_r
-        raxml-ng --model GTR+G4+FO+IO --msa {input.aln}.{wildcards.tree}_r \
-        --seed 239 --threads {threads} --force --tree pars{{1}}
-        cp {input.aln}.{wildcards.tree}_r.raxml.bestTree {output.tree}
-        cp {input.aln}.{wildcards.tree}_r.raxml.bestModel {output.model}
-        cp {input.aln}.{wildcards.tree}_r.raxml.log {output.log}
-        rm -rf {input.aln}.{wildcards.tree}_r*
-        """
+# rule raxml:
+#     '''
+#     Reconstructs a tree with RAxML.
+#     '''
+#     input:
+#         aln = os.path.join(data_dir, 'aln', 'aln.FLT.filtered.fa')
+#     output:
+#         tree = os.path.join(data_dir, 'trees', 'raxml.nwk'),
+#         log = os.path.join(data_dir, 'trees', 'raxml.log'),
+#         model = os.path.join(data_dir, 'trees', 'raxml.model'),
+#     threads: 12
+#     singularity: "docker://evolbioinfo/raxml-ng:v1.1.0"
+#     params:
+#         mem = 40000,
+#         name = 'raxml',
+#         qos = 'normal'
+#     shell:
+#         """
+#         cp {input.aln} {input.aln}.{wildcards.tree}_r
+#         raxml-ng --model GTR+G4+FO+IO --msa {input.aln}.{wildcards.tree}_r \
+#         --seed 239 --threads {threads} --force --tree pars{{1}}
+#         cp {input.aln}.{wildcards.tree}_r.raxml.bestTree {output.tree}
+#         cp {input.aln}.{wildcards.tree}_r.raxml.bestModel {output.model}
+#         cp {input.aln}.{wildcards.tree}_r.raxml.log {output.log}
+#         rm -rf {input.aln}.{wildcards.tree}_r*
+#         """
 
 
 rule fasttree:
@@ -119,32 +119,32 @@ rule resolve:
         """
 
 
-rule optimise_branch_lengths:
-    '''
-    Optimises branch lengths on a given tree with RAxML-NG
-    '''
-    input:
-        aln = os.path.join(data_dir, 'aln', 'aln.FLT.filtered.fa'),
-        tree = os.path.join(data_dir, 'trees', '{tree}.resolved.nwk'),
-    output:
-        tree = os.path.join(data_dir, 'trees', 'raxed_{tree}.nwk'),
-        log = os.path.join(data_dir, 'trees', 'raxed_{tree}.log'),
-        model = os.path.join(data_dir, 'trees', 'raxed_{tree}.model'),
-    threads: 4
-    singularity: "docker://evolbioinfo/raxml-ng:v1.1.0"
-    params:
-        mem = 40000,
-        name = 'raxbr_{tree}',
-    shell:
-        """
-        cp {input.aln} {input.aln}.{wildcards.tree}_rf
-        raxml-ng --evaluate --model GTR+G4+FO+IO --msa {input.aln}.{wildcards.tree}_rf --msa-format FASTA --data-type DNA \
-        --tree {input.tree} --threads {threads} --force --seed 239
-        cp {input.aln}.{wildcards.tree}_rf.raxml.bestTree {output.tree}
-        cp {input.aln}.{wildcards.tree}_rf.raxml.bestModel {output.model}
-        cp {input.aln}.{wildcards.tree}_rf.raxml.log {output.log}
-        rm -rf {input.aln}.{wildcards.tree}_rf*
-        """
+# rule optimise_branch_lengths:
+#     '''
+#     Optimises branch lengths on a given tree with RAxML-NG
+#     '''
+#     input:
+#         aln = os.path.join(data_dir, 'aln', 'aln.FLT.filtered.fa'),
+#         tree = os.path.join(data_dir, 'trees', '{tree}.resolved.nwk'),
+#     output:
+#         tree = os.path.join(data_dir, 'trees', 'raxed_{tree}.nwk'),
+#         log = os.path.join(data_dir, 'trees', 'raxed_{tree}.log'),
+#         model = os.path.join(data_dir, 'trees', 'raxed_{tree}.model'),
+#     threads: 4
+#     singularity: "docker://evolbioinfo/raxml-ng:v1.1.0"
+#     params:
+#         mem = 40000,
+#         name = 'raxbr_{tree}',
+#     shell:
+#         """
+#         cp {input.aln} {input.aln}.{wildcards.tree}_rf
+#         raxml-ng --evaluate --model GTR+G4+FO+IO --msa {input.aln}.{wildcards.tree}_rf --msa-format FASTA --data-type DNA \
+#         --tree {input.tree} --threads {threads} --force --seed 239
+#         cp {input.aln}.{wildcards.tree}_rf.raxml.bestTree {output.tree}
+#         cp {input.aln}.{wildcards.tree}_rf.raxml.bestModel {output.model}
+#         cp {input.aln}.{wildcards.tree}_rf.raxml.log {output.log}
+#         rm -rf {input.aln}.{wildcards.tree}_rf*
+#         """
 
 rule aln_against_reference:
     '''
@@ -154,7 +154,7 @@ rule aln_against_reference:
         fa = os.path.join(data_dir, 'input', 'N.fasta'),
         ref = os.path.join(data_dir, 'aln', 'aln.FLT.filtered.fa'),
     output:
-        aln = temp(os.path.join(data_dir, 'aln', 'aln.og.fa'))
+        aln = temp(os.path.join(data_dir, 'aln', 'aln.FLT.filtered.og.fa'))
     params:
         mem = 1000,
         name = 'aln',
@@ -172,9 +172,9 @@ rule xzip:
     Xzips the alignments.
     '''
     input:
-        aln = os.path.join(data_dir, 'aln', '{aln}'),
+        aln = os.path.join(data_dir, 'aln', 'aln.FLT.filtered.fa'),
     output:
-        aln = os.path.join(data_dir, 'aln', '{aln}.xz'),
+        aln = os.path.join(data_dir, 'aln', 'aln.FLT.filtered.xz'),
     params:
         mem = 6000,
         name = 'xz_{aln}',
@@ -191,7 +191,7 @@ rule xzip:
 #     '''
 #     input:
 #         fa = os.path.join(data_dir, 'input', 'N.fasta'),
-#         aln = temp(os.path.join(data_dir, 'aln', 'aln.og.fa'))
+#         aln = temp(os.path.join(data_dir, 'aln', 'aln.FLT.filtered.fa'))
 #     output:
 #         aln = os.path.join(data_dir, 'aln', 'outgroup.fa')
 #     params:
@@ -212,7 +212,7 @@ rule insert_og_raxml:
     Inserts the outgroup with RAxML.
     '''
     input:
-        aln = os.path.join(data_dir, 'aln', 'aln.og.fa'),
+        aln = os.path.join(data_dir, 'aln', 'aln.FLT.filtered.og.fa'),
         tree = os.path.join(data_dir, 'trees', '{tree}.nwk'),
         starttree = os.path.join(data_dir, 'trees', '{tree}.nwk'),
         model = os.path.join(data_dir, 'trees', '{tree}.model'),
