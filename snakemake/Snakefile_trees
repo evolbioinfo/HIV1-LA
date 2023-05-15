@@ -183,29 +183,7 @@ rule xzip:
     shell:
         """
         xz -zc {input.aln} > {output.aln}
-        """
-
-# rule extract_og_aln:
-#     '''
-#     Extracts the aligned outgroup from the MSA.
-#     '''
-#     input:
-#         fa = os.path.join(data_dir, 'input', 'N.fasta'),
-#         aln = temp(os.path.join(data_dir, 'aln', 'aln.FLT.filtered.fa'))
-#     output:
-#         aln = os.path.join(data_dir, 'aln', 'outgroup.fa')
-#     params:
-#         mem = 1000,
-#         name = 'aln',
-#         qos = 'fast'
-#     threads: 1
-#     singularity: "docker://evolbioinfo/goalign:v0.3.6"
-#     shell:
-#         """
-#         grep ">" {input.fa} | sed 's/>//g' > {output.aln}.name
-#         goalign subset -f {output.aln}.name -i {input.aln} -o {output.aln}
-#         rm -rf {output.aln}.name
-#         """
+        ""
 
 rule insert_og_raxml:
     '''
@@ -245,7 +223,7 @@ rule root:
     output:
         tree = os.path.join(data_dir, 'trees', 'rooted_{tree}.nwk'),
     singularity:
-        "docker://evolbioinfo/gotree:v0.3.0b"
+        "docker://evolbioinfo/gotree:v0.4.4"
     params:
         mem = 2000,
         name = 'root',
@@ -257,51 +235,3 @@ rule root:
         gotree support clear -i {input.tree} | gotree reroot outgroup -l {output.tree}.og -o {output.tree} -r
         rm -rf {output.tree}.og 
         """
-
-
-# rule insert_og:
-#     '''
-#     Inserts the outgroup into the tree.
-#     '''
-#     input:
-#         aln = os.path.join(data_dir, 'aln', 'aln.FLT.filtered.fa'),
-#         tree = os.path.join(data_dir, 'trees', '{tree}.nwk'),
-#         model = os.path.join(data_dir, 'trees', '{tree}.model'),
-#         og = os.path.join(data_dir, 'aln', 'outgroup.fa')
-#     output:
-#         placement = os.path.join(data_dir, 'trees', 'rooted_{tree}.placement'),
-#     threads: 12
-#     singularity: "docker://evolbioinfo/epa-ng:v0.3.8"
-#     params:
-#         mem = 40000,
-#         name='epa',
-#         qos='normal'
-#     shell:
-#         """
-#         rm -rf {input.tree}_epa
-#         mkdir {input.tree}_epa
-#         epa-ng --ref-msa {input.aln} --tree {input.tree} --query {input.og} --model {input.model} --outdir {input.tree}_epa
-#         mv {input.tree}_epa/epa_result.jplace {output.placement}
-#         rm -rf {input.tree}_epa
-#         """
-#
-#
-# rule process_placement:
-#     '''
-#     Roots the tree according to the outgroup placement.
-#     '''
-#     input:
-#         tree = os.path.join(data_dir, 'trees', '{tree}.nwk'),
-#         placement = os.path.join(data_dir, 'trees', 'rooted_{tree}.placement'),
-#     output:
-#         tree = os.path.join(data_dir, 'trees', 'rooted_{tree}.nwk'),
-#     threads: 1
-#     singularity: "docker://evolbioinfo/python-evol:v3.8.2"
-#     params:
-#         mem = 40000,
-#         name='epa',
-#         qos='normal'
-#     shell:
-#         """
-#         python3 py/place.py --in_nwk {input.tree} --out_nwk {output.tree} --placement {input.placement}
-#         """
