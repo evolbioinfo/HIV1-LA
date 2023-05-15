@@ -8,7 +8,6 @@ import os
 # snakemake --snakefile Snakefile_dating --dag | dot -Tsvg > pipeline_dating.svg
 
 localrules: all
-ruleorder: nex2nwk > date_lsd2
 
 folder = os.path.abspath(config.get("folder", '..'))
 data_dir = os.path.join(folder, 'data')
@@ -76,10 +75,10 @@ rule extract_partition_lsd2:
     shell:
         """
         python3 py/extract_partition_lsd.py --data {input.tab} --partition {output.tab} \
-        --in_nwk {input.tree} --out_nwk {output.tree} --subtype_col "generalized_subtype" --outgroup {output.og}
+        --in_nwk {input.tree} --out_nwk {output.tree} --subtype_col "generalized_subtype"
         """
 
-rule date_lsd2_no_part:
+rule date_lsd2_strict:
     '''
     Date a tree.
     '''
@@ -110,7 +109,7 @@ rule date_lsd2_no_part:
         """
 
 
-rule date_lsd2:
+rule date_lsd2_local:
     '''
     Date a tree.
     '''
